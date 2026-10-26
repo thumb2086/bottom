@@ -86,6 +86,8 @@ pub struct InnerData {
     pub(crate) arc_harvest: Option<MemData>,
     #[cfg(feature = "gpu")]
     pub(crate) gpu_harvest: Vec<(String, MemData)>,
+    #[cfg(feature = "gpu")]
+    pub(crate) gpu_util_harvest: Vec<(String, u32)>,
     pub(crate) cpu_harvest: CpuHarvest,
     pub(crate) load_avg_harvest: LoadAvgHarvest,
     pub(crate) process_data: ProcessData,
@@ -123,6 +125,8 @@ impl Default for InnerData {
             arc_harvest: None,
             #[cfg(feature = "gpu")]
             gpu_harvest: Vec::default(),
+            #[cfg(feature = "gpu")]
+            gpu_util_harvest: Vec::default(),
             starting_total_network: None,
         }
     }
@@ -185,6 +189,10 @@ impl InnerData {
         #[cfg(feature = "gpu")]
         if let Some(gpu) = data.gpu {
             self.gpu_harvest = gpu;
+        }
+        #[cfg(feature = "gpu")]
+        if let Some(gpu_util) = data.gpu_util {
+            self.gpu_util_harvest = gpu_util;
         }
 
         if let Some(cpu) = data.cpu {

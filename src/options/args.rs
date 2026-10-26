@@ -88,6 +88,9 @@ pub struct BottomArgs {
     pub style: StyleArgs,
 
     #[command(flatten)]
+    pub recording: RecordingArgs,
+
+    #[command(flatten)]
     pub other: OtherArgs,
 }
 
@@ -694,6 +697,52 @@ pub struct StyleArgs {
         }
     )]
     pub theme: Option<String>,
+}
+
+/// Recording arguments/config options.
+#[derive(Args, Clone, Debug, Default)]
+#[command(next_help_heading = "Recording Options", rename_all = "snake_case")]
+pub struct RecordingArgs {
+    #[arg(
+        long,
+        action = ArgAction::SetTrue,
+        help = "Enable metrics recording to CSV.",
+        long_help = "Enable metrics recording to CSV files. Records CPU, memory, disk, network, GPU, and process data."
+    )]
+    pub record: bool,
+
+    #[arg(
+        long,
+        value_name = "TIME",
+        help = "Recording interval.",
+        long_help = "How often to write metrics to CSV. Either a number in milliseconds or a 'human duration' (e.g. 1s, 10s). Defaults to 5s."
+    )]
+    pub record_interval: Option<String>,
+
+    #[arg(
+        long,
+        value_name = "PATH",
+        value_hint = ValueHint::DirPath,
+        help = "Output directory for CSV files.",
+        long_help = "Directory where CSV files will be written. Defaults to ./bottom-logs in the current directory."
+    )]
+    pub record_dir: Option<PathBuf>,
+
+    #[arg(
+        long,
+        value_name = "DAYS",
+        help = "Number of days to keep CSV files.",
+        long_help = "Number of days to keep CSV files before deleting. Defaults to 30 days."
+    )]
+    pub record_keep_days: Option<u32>,
+
+    #[arg(
+        long,
+        action = ArgAction::SetTrue,
+        help = "Compress old CSV files.",
+        long_help = "Compress CSV files older than 1 day using gzip."
+    )]
+    pub record_compress: bool,
 }
 
 /// Other arguments. This just handle options that are for help/version

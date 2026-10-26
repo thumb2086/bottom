@@ -7,6 +7,7 @@ pub mod layout;
 pub mod memory_graph;
 pub mod network_graph;
 pub mod process;
+pub mod recording;
 pub mod style;
 pub mod temperature;
 pub mod temperature_graph;
@@ -21,7 +22,7 @@ use temperature::TempConfig;
 use temperature_graph::TempGraphConfig;
 
 pub use self::ignore_list::IgnoreList;
-use self::{cpu::CpuConfig, layout::Row, process::ProcessesConfig};
+use self::{cpu::CpuConfig, layout::Row, process::ProcessesConfig, recording::RecordingConfig};
 use crate::options::config::memory_graph::MemoryGraphConfig;
 
 /// Overall config for `bottom`.
@@ -42,6 +43,7 @@ pub struct Config {
     #[serde(alias = "memory")]
     pub(crate) memory_graph: Option<MemoryGraphConfig>,
     pub(crate) cpu: Option<CpuConfig>,
+    pub(crate) recording: Option<RecordingConfig>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

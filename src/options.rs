@@ -28,7 +28,7 @@ use starship_battery::Manager;
 
 use self::{
     args::BottomArgs,
-    config::{IgnoreList, StringOrNum, layout::Row},
+    config::{IgnoreList, StringOrNum, layout::Row, recording::RecordingConfig},
 };
 use crate::{
     app::{filter::Filter, layout_manager::*, *},
@@ -552,6 +552,13 @@ pub(crate) fn init_app(args: BottomArgs, config: Config) -> Result<(App, BottomL
                 .and_then(|cfg| cfg.use_binary_prefix)
                 .unwrap_or(false),
         disk_io_graph_show_unmounted,
+        recording: RecordingConfig {
+            enabled: args.recording.record,
+            interval: args.recording.record_interval.clone(),
+            output_dir: args.recording.record_dir.clone().map(|p| p.to_string_lossy().to_string()),
+            keep_days: args.recording.record_keep_days,
+            compress: args.recording.record_compress,
+        },
     };
 
     let process_default_sort = match &args.process.process_default_sort {

@@ -26,11 +26,13 @@ pub(crate) mod constants;
 pub(crate) mod event;
 pub mod options;
 pub mod widgets;
+pub(crate) mod recorder;
 
 use std::{
     boxed::Box,
     io::{Stdout, Write, stderr, stdout},
     panic::{self, PanicHookInfo},
+    path::PathBuf,
     sync::{
         Arc,
         mpsc::{self, Receiver, Sender},
@@ -57,6 +59,7 @@ use utils::logging::*;
 use utils::{cancellation_token::CancellationToken, conversion::*};
 
 use crate::collection::Data;
+use crate::recorder::{RecorderConfig, RecorderHandle};
 
 // Used for heap allocation debugging purposes.
 // #[global_allocator]
@@ -292,7 +295,43 @@ fn create_collection_thread(
     })
 }
 
-/// Main code to call to start bottom.
+/// Create a recorder if enabled in config.
+fn create_recorder(app: &app::App) -> anyhow::Result<Option<RecorderHandle>> {
+    let recording_config = app.app_config_fields.recording.clone();
+    
+    if !recording_config.enabled {
+        return Ok(None);
+    }
+
+    let interval = recording_config.interval
+        .and_then(|s| humantime::parse_duration(&s).ok())
+        .unwrap_or(Duration::from_secs(5));
+
+    let output_dir = recording_config.output_dir
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            dirs::data_local_dir()
+                .unwrap_or_else(|| PathBuf::from("."))
+                .join("bottom-logs")
+        });
+
+    let keep_days = recording_config.keep_days.unwrap_or(30);
+    let compress = recording_config.compress;
+
+    let recorder_config = RecorderConfig {
+        enabled: true,
+        interval,
+        output_dir,
+        keep_days,
+        compress,
+    };
+
+    // Create a new DataStore for the recorder
+    let data_store = app::data::DataStore::new(app.used_widgets);
+    let recorder = RecorderHandle::new(recorder_config, data_store);
+
+    Ok(Some(recorder))
+}
 #[inline]
 pub fn start_bottom(enable_error_hook: &mut bool) -> anyhow::Result<()> {
     // let _profiler = dhat::Profiler::new_heap();
@@ -314,6 +353,9 @@ pub fn start_bottom(enable_error_hook: &mut bool) -> anyhow::Result<()> {
     // Create the "app" and initialize a bunch of stuff.
     let (mut app, widget_layout, styling) = init_app(args, config)?;
 
+    // Create recorder if enabled
+    let recorder = create_recorder(&app)?;
+
     // Create painter and set colours.
     let mut painter = canvas::Painter::init(widget_layout, styling)?;
 
@@ -323,7 +365,7 @@ pub fn start_bottom(enable_error_hook: &mut bool) -> anyhow::Result<()> {
     let cancellation_token = Arc::new(CancellationToken::default());
     let (sender, receiver) = mpsc::channel();
 
-    // Set up the event loop thread; we set this up early to speed up
+    // Set up the event loop thread; we set up early to speed up
     // first-time-to-data.
     let (collection_thread_ctrl_sender, collection_thread_ctrl_receiver) = mpsc::channel();
     let _collection_thread = create_collection_thread(
@@ -424,6 +466,11 @@ pub fn start_bottom(enable_error_hook: &mut bool) -> anyhow::Result<()> {
                     try_drawing(&mut terminal, &mut app, &mut painter)?;
                 }
                 BottomEvent::Update(data) => {
+                    // Record data if recorder is enabled
+                    if let Some(ref rec) = recorder {
+                        rec.record(data.clone());
+                    }
+
                     app.data_store.eat_data(data, &app.app_config_fields);
 
                     // This thing is required as otherwise, some widgets can't
@@ -476,6 +523,12 @@ pub fn start_bottom(enable_error_hook: &mut bool) -> anyhow::Result<()> {
     // I think doing it in this order is safe...
     // TODO: maybe move the cancellation token to the ctrl-c handler?
     cancellation_token.cancel();
+
+    // Shutdown recorder
+    if let Some(rec) = recorder {
+        rec.shutdown();
+    }
+
     cleanup_terminal(&mut terminal)?;
 
     Ok(())

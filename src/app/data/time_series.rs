@@ -61,6 +61,9 @@ pub struct TimeSeriesData {
     #[cfg(feature = "gpu")]
     /// GPU memory data.
     pub gpu_mem: HashMap<String, Values>,
+    #[cfg(feature = "gpu")]
+    /// GPU utilization data.
+    pub gpu_util: HashMap<String, Values>,
 
     /// Temperature data.
     ///
@@ -181,6 +184,40 @@ impl TimeSeriesData {
                 }
             } else {
                 for g in self.gpu_mem.values_mut() {
+                    g.insert_break();
+                }
+            }
+
+            // GPU utilization time series
+            if let Some(gpu_util) = &data.gpu_util {
+                let mut not_visited = self
+                    .gpu_util
+                    .keys()
+                    .map(String::to_owned)
+                    .collect::<HashSet<_>>();
+
+                for (name, util) in gpu_util {
+                    not_visited.remove(name);
+
+                    if !self.gpu_util.contains_key(name) {
+                        self.gpu_util
+                            .insert(name.to_string(), ChunkedData::default());
+                    }
+
+                    let curr = self
+                        .gpu_util
+                        .get_mut(name)
+                        .expect("entry must exist as it was created above");
+                    curr.push(*util as f64);
+                }
+
+                for nv in not_visited {
+                    if let Some(entry) = self.gpu_util.get_mut(&nv) {
+                        entry.insert_break();
+                    }
+                }
+            } else {
+                for g in self.gpu_util.values_mut() {
                     g.insert_break();
                 }
             }
@@ -332,6 +369,17 @@ impl TimeSeriesData {
 
                 // Remove the entry if it is empty. We can always add it again
                 // later.
+                if gpu.no_elements() {
+                    false
+                } else {
+                    gpu.shrink_to_fit();
+                    true
+                }
+            });
+
+            self.gpu_util.retain(|_, gpu| {
+                let _ = gpu.prune(end);
+
                 if gpu.no_elements() {
                     false
                 } else {

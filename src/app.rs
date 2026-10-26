@@ -18,7 +18,7 @@ use crate::{
     },
     components::time_series::TimeseriesState,
     constants,
-    options::config::flags::TableGap,
+    options::config::{flags::TableGap, recording::RecordingConfig},
     utils::data_units::DataUnit,
     widgets::{
         DiskWidgetColumn, ProcWidgetColumn, ProcWidgetMode, TempWidgetColumn, TreeCollapsed,
@@ -90,6 +90,7 @@ pub struct AppConfigFields {
     pub disk_show_unmounted: bool,
     pub disk_use_binary_prefix: bool,
     pub disk_io_graph_show_unmounted: bool,
+    pub recording: RecordingConfig,
 }
 
 /// For filtering out information

@@ -60,6 +60,8 @@ pub struct Data {
     pub arc: Option<memory::MemData>,
     #[cfg(feature = "gpu")]
     pub gpu: Option<Vec<(String, memory::MemData)>>,
+    #[cfg(feature = "gpu")]
+    pub gpu_util: Option<Vec<(String, u32)>>,
 }
 
 impl Default for Data {
@@ -83,6 +85,8 @@ impl Default for Data {
             arc: None,
             #[cfg(feature = "gpu")]
             gpu: None,
+            #[cfg(feature = "gpu")]
+            gpu_util: None,
         }
     }
 }
@@ -108,6 +112,7 @@ impl Data {
         #[cfg(feature = "gpu")]
         {
             self.gpu = None;
+            self.gpu_util = None;
         }
     }
 }
@@ -432,6 +437,7 @@ impl DataCollector {
     fn update_gpus(&mut self) {
         if self.widgets_to_harvest.use_gpu {
             let mut local_gpu: Vec<(String, memory::MemData)> = Vec::new();
+            let mut local_gpu_util: Vec<(String, u32)> = Vec::new();
             let mut local_gpu_pids: Vec<IntHashMap<Pid, (u64, u32)>> = Vec::new();
             let mut local_gpu_total_mem: u64 = 0;
 
@@ -447,6 +453,9 @@ impl DataCollector {
                 if let Some(mut mem) = data.memory {
                     local_gpu.append(&mut mem);
                 }
+                if let Some(mut util) = data.utilization {
+                    local_gpu_util.append(&mut util);
+                }
                 if let Some(mut proc) = data.procs {
                     local_gpu_pids.append(&mut proc.1);
                     local_gpu_total_mem += proc.0;
@@ -459,6 +468,9 @@ impl DataCollector {
             {
                 if let Some(mut mem) = data.memory {
                     local_gpu.append(&mut mem);
+                }
+                if let Some(mut util) = data.utilization {
+                    local_gpu_util.append(&mut util);
                 }
                 if let Some(mut proc) = data.process_data {
                     local_gpu_pids.append(&mut proc.1);
@@ -473,6 +485,9 @@ impl DataCollector {
                 if let Some(mut mem) = data.memory {
                     local_gpu.append(&mut mem);
                 }
+                if let Some(mut util) = data.utilization {
+                    local_gpu_util.append(&mut util);
+                }
                 if let Some(mut proc) = data.process_data {
                     local_gpu_pids.append(&mut proc.1);
                     local_gpu_total_mem += proc.0;
@@ -480,6 +495,7 @@ impl DataCollector {
             }
 
             self.data.gpu = (!local_gpu.is_empty()).then_some(local_gpu);
+            self.data.gpu_util = (!local_gpu_util.is_empty()).then_some(local_gpu_util);
             self.gpu_pids = (!local_gpu_pids.is_empty()).then_some(local_gpu_pids);
             self.gpus_total_mem = (local_gpu_total_mem > 0).then_some(local_gpu_total_mem);
         }

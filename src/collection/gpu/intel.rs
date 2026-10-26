@@ -46,6 +46,7 @@ impl IntelDriver {
 pub struct IntelGpuData {
     pub memory: Option<Vec<(String, MemData)>>,
     pub process_data: Option<(u64, Vec<IntHashMap<Pid, (u64, u32)>>)>,
+    pub utilization: Option<Vec<(String, u32)>>, // (name, gpu_util_percent)
 }
 
 /// Intel GPU VRAM usage.
@@ -191,6 +192,7 @@ pub fn get_intel_gpu_data(
     let interval = Instant::now().duration_since(prev_time);
     let num_gpus = i915_devices.len() + xe_devices.len();
     let mut mem_vec = Vec::with_capacity(num_gpus);
+    let mut util_vec = Vec::with_capacity(num_gpus);
     let mut proc_vec = Vec::with_capacity(num_gpus);
     let mut total_mem = 0;
 
@@ -232,6 +234,25 @@ pub fn get_intel_gpu_data(
             }
 
             total_mem += mem.total;
+        }
+
+        // Collect GPU utilization from process data
+        if widgets_to_harvest.use_gpu
+            && let Some(procs) = get_intel_fdinfo(&device_path, driver)
+        {
+            let mut total_gpu_util: u32 = 0;
+            for proc_usage in procs.values() {
+                total_gpu_util += compute_util(driver, &IntelGpuProc::default(), proc_usage, &interval);
+            }
+            // Average utilization across processes
+            let avg_util = if !procs.is_empty() {
+                total_gpu_util / procs.len() as u32
+            } else {
+                0
+            };
+            if avg_util > 0 {
+                util_vec.push((device_name.clone(), avg_util));
+            }
         }
 
         if widgets_to_harvest.use_proc
@@ -286,5 +307,6 @@ pub fn get_intel_gpu_data(
     Some(IntelGpuData {
         memory: (!mem_vec.is_empty()).then_some(mem_vec),
         process_data: (!proc_vec.is_empty()).then_some((total_mem, proc_vec)),
+        utilization: (!util_vec.is_empty()).then_some(util_vec),
     })
 }

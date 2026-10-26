@@ -4,6 +4,7 @@ use std::{num::NonZeroU64, sync::OnceLock};
 
 use nvml_wrapper::{
     Nvml, enum_wrappers::device::TemperatureSensor, enums::device::UsedGpuMemory, error::NvmlError,
+    struct_wrappers::device::Utilization,
 };
 
 use crate::{
@@ -18,6 +19,7 @@ pub struct GpusData {
     pub memory: Option<Vec<(String, MemData)>>,
     pub temperature: Option<Vec<TempSensorData>>,
     pub procs: Option<(u64, Vec<IntHashMap<Pid, (u64, u32)>>)>,
+    pub utilization: Option<Vec<(String, u32)>>, // (name, gpu_util_percent)
 }
 
 /// Wrapper around Nvml::init
@@ -212,6 +214,7 @@ pub fn get_nvidia_gpu_data(collector: &mut DataCollector) -> Option<GpusData> {
     let mut temp_vec = Vec::with_capacity(max_num_gpus);
     let mut mem_vec = Vec::with_capacity(max_num_gpus);
     let mut proc_vec = Vec::with_capacity(max_num_gpus);
+    let mut util_vec = Vec::with_capacity(max_num_gpus);
     let mut total_mem = 0;
 
     for device in gpu_iter {
@@ -235,14 +238,21 @@ pub fn get_nvidia_gpu_data(collector: &mut DataCollector) -> Option<GpusData> {
             {
                 if let Ok(temperature) = device.temperature(TemperatureSensor::Gpu) {
                     temp_vec.push(TempSensorData {
-                        name,
+                        name: name.clone(),
                         temperature: Some(temperature as f32),
                     });
                 } else {
                     temp_vec.push(TempSensorData {
-                        name,
+                        name: name.clone(),
                         temperature: None,
                     });
+                }
+            }
+
+            // Collect GPU utilization
+            if widgets_to_harvest.use_gpu {
+                if let Ok(util) = device.utilization_rates() {
+                    util_vec.push((name.clone(), util.gpu));
                 }
             }
         }
@@ -328,6 +338,11 @@ pub fn get_nvidia_gpu_data(collector: &mut DataCollector) -> Option<GpusData> {
         },
         procs: if !proc_vec.is_empty() {
             Some((total_mem, proc_vec))
+        } else {
+            None
+        },
+        utilization: if !util_vec.is_empty() {
+            Some(util_vec)
         } else {
             None
         },

@@ -31,6 +31,7 @@ use crate::{
 pub struct AmdGpuData {
     pub memory: Option<Vec<(String, MemData)>>,
     pub process_data: Option<(u64, Vec<IntHashMap<Pid, (u64, u32)>>)>,
+    pub utilization: Option<Vec<(String, u32)>>, // (name, gpu_util_percent)
 }
 
 /// AMD GPU VRAM usage.
@@ -154,6 +155,7 @@ pub fn get_amd_gpu_data(
     let interval = Instant::now().duration_since(prev_time);
     let num_gpu = device_paths.len();
     let mut mem_vec = Vec::with_capacity(num_gpu);
+    let mut util_vec = Vec::with_capacity(num_gpu);
     let mut proc_vec = Vec::with_capacity(num_gpu);
     let mut total_mem = 0;
 
@@ -180,6 +182,28 @@ pub fn get_amd_gpu_data(
             }
 
             total_mem += mem.total
+        }
+
+        // Collect GPU utilization from process data (combined engine usage)
+        if widgets_to_harvest.use_gpu {
+            if let Some(procs) = get_amd_fdinfo(&device_path) {
+                let mut total_gpu_util: u64 = 0;
+                for proc_usage in procs.values() {
+                    total_gpu_util += proc_usage.gfx_usage
+                        + proc_usage.dma_usage
+                        + proc_usage.enc_usage
+                        + proc_usage.dec_usage
+                        + proc_usage.uvd_usage
+                        + proc_usage.vcn_usage
+                        + proc_usage.vpe_usage
+                        + proc_usage.compute_usage;
+                }
+                // Convert to percentage (this is an approximation based on process usage)
+                let gpu_util: u32 = (total_gpu_util / 1000).min(100).try_into().unwrap_or(0);
+                if gpu_util > 0 {
+                    util_vec.push((device_name.clone(), gpu_util));
+                }
+            }
         }
 
         if widgets_to_harvest.use_proc
@@ -259,5 +283,6 @@ pub fn get_amd_gpu_data(
     Some(AmdGpuData {
         memory: (!mem_vec.is_empty()).then_some(mem_vec),
         process_data: (!proc_vec.is_empty()).then_some((total_mem, proc_vec)),
+        utilization: (!util_vec.is_empty()).then_some(util_vec),
     })
 }
