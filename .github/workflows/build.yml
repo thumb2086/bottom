@@ -63,10 +63,12 @@ jobs:
 
       - name: Build
         run: cargo build --release --target ${{ matrix.target }}
+        shell: bash
 
       - name: Strip binary (non-Windows)
         if: runner.os != 'Windows'
         run: strip target/${{ matrix.target }}/release/btm
+        shell: bash
 
       - name: Prepare artifact
         run: |
@@ -76,6 +78,7 @@ jobs:
           else
             cp target/${{ matrix.target }}/release/btm artifacts/${{ matrix.artifact }}
           fi
+        shell: bash
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
