@@ -53,3 +53,5 @@ profile.json.gz
 .ruff_cache
 
 miyaken-tui/
+
+# Trigger CI
