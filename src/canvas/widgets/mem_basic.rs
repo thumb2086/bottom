@@ -143,30 +143,51 @@ impl Painter {
             let gpu_styles = &self.styles.gpu_colours;
             let mut colour_index = 0;
 
-            for (_, harvest) in data.gpu_harvest.iter() {
-                let percentage = harvest.percentage();
-                let label = memory_label(harvest, app_state.basic_mode_use_percent);
+            for (name, harvest) in data.gpu_harvest.iter() {
+                let vram_percentage = harvest.percentage();
+                let vram_label = memory_label(harvest, app_state.basic_mode_use_percent);
+
+                // Get GPU utilization for this GPU
+                let gpu_util = data.gpu_util_harvest.iter()
+                    .find(|(n, _)| n == name)
+                    .map(|(_, util)| *util);
 
                 let style = {
-                    if gpu_styles.is_empty() {
+                    if self.styles.gpu_colours.is_empty() {
                         ratatui::style::Style::default()
                     } else {
-                        let colour = gpu_styles[colour_index % gpu_styles.len()];
+                        let colour = self.styles.gpu_colours[colour_index % self.styles.gpu_colours.len()];
                         colour_index += 1;
-
                         colour
                     }
                 };
 
+                // Show VRAM usage
                 draw_widgets.push(
                     PipeGauge::default()
-                        .ratio(percentage / 100.0)
-                        .start_label("GPU")
-                        .inner_label(label)
+                        .ratio(vram_percentage / 100.0)
+                        .start_label("GPU VRAM")
+                        .inner_label(vram_label)
                         .label_style(style)
                         .gauge_style(style)
                         .bar_type(self.styles.bar_type),
                 );
+
+                // Show GPU Utilization if available
+                if let Some(util) = gpu_util {
+                    let util_label = format!("{}%", util);
+                    draw_widgets.push(
+                        PipeGauge::default()
+                            .ratio(util as f64 / 100.0)
+                            .start_label("GPU Core")
+                            .inner_label(util_label)
+                            .label_style(style)
+                            .gauge_style(style)
+                            .bar_type(self.styles.bar_type),
+                    );
+                }
+
+                colour_index += 1;
             }
         }
 

@@ -142,37 +142,57 @@ impl Painter {
                     let gpu_count = data.gpu_harvest.len();
 
                     for (gpu_index, (name, harvest)) in data.gpu_harvest.iter().enumerate() {
-                        if let Some(gpu_data) = data.time_series_data.gpu_mem.get(name) {
-                            let style = {
-                                if gpu_styles.is_empty() {
-                                    Style::default()
-                                } else {
-                                    let colour = gpu_styles[colour_index % gpu_styles.len()];
-                                    colour_index += 1;
-
-                                    colour
-                                }
-                            };
-
-                            let display_name = if short_gpu_names {
-                                if gpu_count == 1 {
-                                    "GPU".to_string()
-                                } else {
-                                    format!("GPU{gpu_index}")
-                                }
+                        let vram_style = {
+                            if gpu_styles.is_empty() {
+                                Style::default()
                             } else {
-                                name.clone()
+                                let colour = gpu_styles[colour_index % gpu_styles.len()];
+                                colour_index += 1;
+                                colour
+                            }
+                        };
+
+                        let display_name = if short_gpu_names {
+                            if gpu_count == 1 {
+                                "GPU".to_string()
+                            } else {
+                                format!("GPU{gpu_index}")
+                            }
+                        } else {
+                            name.clone()
+                        };
+
+                        // VRAM Graph
+                        if let Some(gpu_data) = data.time_series_data.gpu_mem.get(name) {
+                            graph_data(
+                                &mut points,
+                                &format!("{} VRAM", display_name),
+                                Some(harvest),
+                                time,
+                                gpu_data,
+                                vram_style,
+                            );
+                        }
+
+                        // GPU Utilization Graph
+                        if let Some(gpu_util_data) = data.time_series_data.gpu_util.get(name) {
+                            let util_style = if gpu_styles.is_empty() {
+                                Style::default()
+                            } else {
+                                gpu_styles[colour_index % gpu_styles.len()]
                             };
 
                             graph_data(
                                 &mut points,
-                                &display_name,
-                                Some(harvest),
+                                &format!("{} Core", display_name),
+                                None,
                                 time,
-                                gpu_data,
-                                style,
+                                gpu_util_data,
+                                util_style,
                             );
                         }
+
+                        colour_index += 1;
                     }
                 }
 

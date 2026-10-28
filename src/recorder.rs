@@ -246,7 +246,7 @@ fn write_metrics(
     let gpu_util: Vec<(String, u32)> = data.gpu_util_harvest.clone();
     let gpu_memory: Vec<(String, f64)> = data.gpu_harvest.iter().map(|(n, m)| (n.clone(), m.percentage())).collect();
     let gpu_temp: Vec<(String, Option<f32>)> = data.temp_data.iter()
-        .filter(|t| t.sensor.to_lowercase().contains("gpu"))
+        .filter(|t| t.sensor.to_lowercase().contains("gpu") || t.sensor.to_lowercase().contains("nvidia") || t.sensor.to_lowercase().contains("geforce") || t.sensor.to_lowercase().contains("rtx"))
         .map(|t| (t.sensor.clone(), t.temperature.as_ref().map(typed_temp_to_f32)))
         .collect();
 

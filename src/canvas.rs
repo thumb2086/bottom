@@ -339,7 +339,8 @@ impl Painter {
 
                 #[cfg(feature = "gpu")]
                 {
-                    mem_rows += data.gpu_harvest.len() as u16; // add row(s) for gpu
+                    // Each GPU needs 2 rows: VRAM + Core utilization
+                    mem_rows += (data.gpu_harvest.len() as u16) * 2;
                 }
 
                 let network_rows = if app_state.app_config_fields.network_show_packets {

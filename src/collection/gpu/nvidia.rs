@@ -4,7 +4,6 @@ use std::{num::NonZeroU64, sync::OnceLock};
 
 use nvml_wrapper::{
     Nvml, enum_wrappers::device::TemperatureSensor, enums::device::UsedGpuMemory, error::NvmlError,
-    struct_wrappers::device::Utilization,
 };
 
 use crate::{
@@ -251,8 +250,17 @@ pub fn get_nvidia_gpu_data(collector: &mut DataCollector) -> Option<GpusData> {
 
             // Collect GPU utilization
             if widgets_to_harvest.use_gpu {
-                if let Ok(util) = device.utilization_rates() {
-                    util_vec.push((name.clone(), util.gpu));
+                #[cfg(target_os = "windows")]
+                {
+                    // On Windows, use Performance Counters for real-time GPU utilization
+                    // This is done once per collection cycle, not per device
+                    // We'll collect it after the device loop
+                }
+                #[cfg(not(target_os = "windows"))]
+                {
+                    if let Ok(util) = device.utilization_rates() {
+                        util_vec.push((name.clone(), util.gpu));
+                    }
                 }
             }
         }
@@ -321,6 +329,22 @@ pub fn get_nvidia_gpu_data(collector: &mut DataCollector) -> Option<GpusData> {
             // running total for proc %
             if let Ok(mem) = device.memory_info() {
                 total_mem += mem.total;
+            }
+        }
+    }
+
+    // On Windows, collect GPU utilization via nvidia-smi (real-time)
+    #[cfg(target_os = "windows")]
+    {
+        if widgets_to_harvest.use_gpu {
+            let windows_util = crate::collection::gpu::windows::get_windows_gpu_utilization();
+            // Map the util data to the actual GPU names from NVML
+            for (i, (_, util)) in windows_util.into_iter().enumerate() {
+                if let Some((name, _)) = mem_vec.get(i) {
+                    util_vec.push((name.clone(), util));
+                } else {
+                    util_vec.push((format!("GPU {}", i), util));
+                }
             }
         }
     }
