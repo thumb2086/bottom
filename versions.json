@@ -7,9 +7,7 @@
   {
     "version": "0.14.9",
     "title": "0.14.9",
-    "aliases": [
-      "stable"
-    ]
+    "aliases": []
   },
   {
     "version": "0.14.8",
@@ -215,5 +213,12 @@
     "version": "0.6.1",
     "title": "0.6.1",
     "aliases": []
+  },
+  {
+    "version": "v0.14.9-custom6",
+    "title": "v0.14.9-custom6",
+    "aliases": [
+      "stable"
+    ]
   }
 ]
